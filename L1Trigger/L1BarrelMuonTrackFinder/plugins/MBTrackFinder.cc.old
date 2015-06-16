@@ -1,0 +1,94 @@
+//-------------------------------------------------
+//
+//   Class: MBTrackFinder
+//
+//   L1 MB Track Finder EDProducer
+//
+//
+//
+//   Author :
+//   J. Troconiz              UAM Madrid
+//
+//--------------------------------------------------
+
+#include "MBTrackFinder.h"
+
+#include "DataFormats/Common/interface/Handle.h"
+#include "FWCore/Framework/interface/Event.h"
+
+#include <DataFormats/L1MBTrackFinder/interface/L1MuMBChambPhContainer.h>
+#include <DataFormats/L1MBTrackFinder/interface/L1MuMBChambThContainer.h>
+#include <DataFormats/L1MBTrackFinder/interface/L1MuMBTrackContainer.h>
+#include <DataFormats/L1GlobalMuonTrigger/interface/L1MuRegionalCand.h>
+
+#include "L1Trigger/MBTrackFinder/src/L1MuMBTFConfig.h"
+#include "L1Trigger/MBTrackFinder/interface/L1MuMBTFSetup.h"
+#include "L1Trigger/MBTrackFinder/interface/L1MuMBTrackFinder.h"
+#include "../src/L1MuMBSectorProcessor.h"
+
+#include <iostream>
+#include <iomanip>
+#include <vector>
+
+using namespace std;
+
+MBTrackFinder::MBTrackFinder(const edm::ParameterSet & pset) {
+
+  produces<L1MuMBTrackContainer>("MBTF");
+  produces<vector<L1MuRegionalCand> >("MB");
+
+  setup1 = new L1MuMBTFSetup(pset,consumesCollector());
+  usesResource("MBTrackFinder");
+}
+
+MBTrackFinder::~MBTrackFinder() {
+
+  delete setup1;
+
+}
+
+void MBTrackFinder::produce(edm::Event& e, const edm::EventSetup& c) {
+
+  if ( L1MuMBTFConfig::Debug(1) ) cout << endl;
+  if ( L1MuMBTFConfig::Debug(1) ) cout << "**** L1MuonMBTFTrigger processing event  ****" << endl;
+
+  L1MuMBTFConfig::setDebugLevel(0);
+//  int myints[] = {49, 218, 926, 1346, 2699, 3020, 4466, 5792, 6021, 6909, 6930, 7082, 7479, 8327, 11453, 12501, 13165, 17800};
+  int myints[] = {0,1,2,4,6,7,8,11,13,14,15,17,18,19, 20,21,23,24,25,26,27,28,29,30,31,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,50,51,52,53,54,55,56,57,59,61,62,63};
+  
+  std::vector<int> bad_events (myints, myints + sizeof(myints) / sizeof(int) );
+//if(e.id().event() == (unsigned)(bad_events[0]+1) ) L1MuMBTFConfig::setDebugLevel(6);
+
+  for(unsigned k=0; k<bad_events.size(); k++){
+     if(e.id().event() == (unsigned)(bad_events[k]+1) ) {   
+		std::cout<<"==============Event============ :"<<(e.id().event()-1)<<std::endl;
+		L1MuMBTFConfig::setDebugLevel(6);
+	}
+  }
+
+  L1MuMBTrackFinder* dtbx = setup1->TrackFinder();
+  dtbx->clear();
+  dtbx->run(e,c);
+
+
+  
+                
+
+
+  int ndt = dtbx->numberOfTracks();
+  if ( L1MuMBTFConfig::Debug(1) ) cout << "Number of muons found by the L1 MBBX TRIGGER : "
+                                       << ndt << endl;
+
+  auto_ptr<L1MuMBTrackContainer> tra_product(new L1MuMBTrackContainer);
+  auto_ptr<vector<L1MuRegionalCand> >
+                                 vec_product(new vector<L1MuRegionalCand>);
+
+  vector<L1MuMBTrackCand>&  dtTracks = dtbx->getcache0();
+  tra_product->setContainer(dtTracks);
+  vector<L1MuRegionalCand>& MBTracks = dtbx->getcache();
+  *vec_product = MBTracks;
+
+  e.put(tra_product,"MBTF");
+  e.put(vec_product,"MB");
+
+}
